@@ -9,7 +9,6 @@ import pandas as pd
 import pyarrow
 
 from scenred_backred import backwards_reduction
-import shutil
 
 import src.utils as utils
 
@@ -228,8 +227,7 @@ def load_probabilities_for_slice(
     hour: int,
 ) -> dict:
     """
-    Load probability metadata for a single date/hour slice.
-
+def load_mmo_data(path):
     base_dir: root containing the probabilities directory.
     stem: subfolder under probabilities (e.g., "dayahead_forecasts").
     date: YYYY-MM-DD string.
@@ -262,8 +260,7 @@ def _ensure_reduced_forecast_slice(
 
     reduced_parquet = REDUCTION_OUTPUT_ROOT / filename
 
-    if reduced_parquet.parent.exists():
-        shutil.rmtree(REDUCTION_OUTPUT_ROOT)
+    REDUCTION_OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
     metadata_path = (
         REDUCTION_OUTPUT_ROOT

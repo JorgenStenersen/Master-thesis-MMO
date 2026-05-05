@@ -3,6 +3,7 @@ import csv
 import json
 import pickle
 import time
+import math
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,6 +18,7 @@ from src.solvers.progressive_hedging import (
     compute_dual_residual,
     initialize_shadow_costs,
     print_final_consensus,
+    write_bidding_policy,
     print_iteration_header,
     print_iteration_row,
     update_shadow_costs,
@@ -38,6 +40,27 @@ def _save_json(path: Path, obj) -> None:
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _sanitize_time_str(time_str: str) -> str:
+    safe = []
+    for ch in time_str:
+        if ch.isalnum() or ch in ("-", "_", "."):
+            safe.append(ch)
+        else:
+            safe.append("_")
+    return "".join(safe)
+
+
+def _gap_threshold_from_objective(objective_mean: float | None, gap_pct: float, epsilon: float) -> float:
+    if objective_mean is None:
+        return epsilon
+    if not math.isfinite(objective_mean):
+        return epsilon
+    scaled = gap_pct * abs(objective_mean)
+    if scaled <= 0.0:
+        return epsilon
+    return scaled
 
 
 def _run_bundle_batch(mode: str, iteration: int, num_bundles: int, static_file: Path,
@@ -90,6 +113,11 @@ def _run_bundle_batch(mode: str, iteration: int, num_bundles: int, static_file: 
     elapsed = end_ts - start_ts
 
     objectives = [r["objective"] for r in results if r is not None and "objective" in r]
+    unaug_objectives = [
+        r.get("objective_unaugmented")
+        for r in results
+        if r is not None and r.get("objective_unaugmented") is not None
+    ]
     obj_min = min(objectives) if objectives else None
     obj_max = max(objectives) if objectives else None
     obj_mean = None
@@ -97,6 +125,16 @@ def _run_bundle_batch(mode: str, iteration: int, num_bundles: int, static_file: 
     if objectives:
         obj_mean = sum(objectives) / len(objectives)
         obj_std = (sum((o - obj_mean) ** 2 for o in objectives) / len(objectives)) ** 0.5
+
+    obj_unaug_min = min(unaug_objectives) if unaug_objectives else None
+    obj_unaug_max = max(unaug_objectives) if unaug_objectives else None
+    obj_unaug_mean = None
+    obj_unaug_std = None
+    if unaug_objectives:
+        obj_unaug_mean = sum(unaug_objectives) / len(unaug_objectives)
+        obj_unaug_std = (
+            sum((o - obj_unaug_mean) ** 2 for o in unaug_objectives) / len(unaug_objectives)
+        ) ** 0.5
 
     iter_summary = {
         "iteration": iteration,
@@ -110,6 +148,10 @@ def _run_bundle_batch(mode: str, iteration: int, num_bundles: int, static_file: 
         "objective_max": obj_max,
         "objective_mean": obj_mean,
         "objective_std": obj_std,
+        "objective_unaugmented_min": obj_unaug_min,
+        "objective_unaugmented_max": obj_unaug_max,
+        "objective_unaugmented_mean": obj_unaug_mean,
+        "objective_unaugmented_std": obj_unaug_std,
         "start_utc": start_utc,
         "end_utc": end_utc,
     }
@@ -172,7 +214,7 @@ def _write_iteration_timing_summary(iter_dir: Path, iteration: int, num_bundles:
 
 
 def run_distributed_ph(time_str: str, n_total: int, n_per_bundle: int, num_bundles: int,
-                       seed: int, alpha: float, epsilon: float, max_iter: int,
+                       seed: int, alpha: float, epsilon: float, max_iter: int, gap_pct: float,
                        adaptive_alpha: bool, tau: float, mu: float, work_dir: Path,
                        max_workers: int, gurobi_threads_per_bundle: int) -> None:
     work_dir.mkdir(parents=True, exist_ok=True)
@@ -221,6 +263,12 @@ def run_distributed_ph(time_str: str, n_total: int, n_per_bundle: int, num_bundl
     w_shadow = initialize_shadow_costs(results, consensus, alpha=alpha, verbose=False)
     gap = compute_convergence_gap(results, consensus, market_products)
     k = 0
+    gap_threshold = _gap_threshold_from_objective(
+        iter_summary.get("objective_unaugmented_mean"),
+        gap_pct,
+        epsilon,
+    )
+    effective_max_iter = min(int(max_iter), 100)
 
     iter_summary.update(
         {
@@ -229,6 +277,8 @@ def run_distributed_ph(time_str: str, n_total: int, n_per_bundle: int, num_bundl
             "adaptive_alpha": adaptive_alpha,
             "tau": tau,
             "mu": mu,
+            "gap_threshold": gap_threshold,
+            "gap_pct": gap_pct,
         }
     )
     iter_dir = work_dir / f"iter_{k:03d}"
@@ -239,6 +289,10 @@ def run_distributed_ph(time_str: str, n_total: int, n_per_bundle: int, num_bundl
         "objective_max": iter_summary.get("objective_max"),
         "objective_mean": iter_summary.get("objective_mean"),
         "objective_std": iter_summary.get("objective_std"),
+        "objective_unaugmented_min": iter_summary.get("objective_unaugmented_min"),
+        "objective_unaugmented_max": iter_summary.get("objective_unaugmented_max"),
+        "objective_unaugmented_mean": iter_summary.get("objective_unaugmented_mean"),
+        "objective_unaugmented_std": iter_summary.get("objective_unaugmented_std"),
         "bundles_solved": iter_summary.get("bundles_solved"),
         "bundles_missing": iter_summary.get("bundles_missing"),
     })
@@ -246,7 +300,7 @@ def run_distributed_ph(time_str: str, n_total: int, n_per_bundle: int, num_bundl
 
     print_iteration_row(k, gap, results, alpha=alpha)
 
-    while gap > epsilon and k < max_iter:
+    while gap > gap_threshold and k < effective_max_iter:
         k += 1
 
         results, iter_summary = _run_bundle_batch(
@@ -266,6 +320,11 @@ def run_distributed_ph(time_str: str, n_total: int, n_per_bundle: int, num_bundl
         consensus = compute_consensus(results, verbose=False)
         w_shadow = update_shadow_costs(w_shadow, results, consensus, alpha)
         gap = compute_convergence_gap(results, consensus, market_products)
+        gap_threshold = _gap_threshold_from_objective(
+            iter_summary.get("objective_unaugmented_mean"),
+            gap_pct,
+            epsilon,
+        )
 
         if adaptive_alpha:
             dual_res = compute_dual_residual(consensus, prev_consensus, alpha)
@@ -278,6 +337,8 @@ def run_distributed_ph(time_str: str, n_total: int, n_per_bundle: int, num_bundl
                 "adaptive_alpha": adaptive_alpha,
                 "tau": tau,
                 "mu": mu,
+                "gap_threshold": gap_threshold,
+                "gap_pct": gap_pct,
             }
         )
         iter_dir = work_dir / f"iter_{k:03d}"
@@ -288,6 +349,10 @@ def run_distributed_ph(time_str: str, n_total: int, n_per_bundle: int, num_bundl
             "objective_max": iter_summary.get("objective_max"),
             "objective_mean": iter_summary.get("objective_mean"),
             "objective_std": iter_summary.get("objective_std"),
+            "objective_unaugmented_min": iter_summary.get("objective_unaugmented_min"),
+            "objective_unaugmented_max": iter_summary.get("objective_unaugmented_max"),
+            "objective_unaugmented_mean": iter_summary.get("objective_unaugmented_mean"),
+            "objective_unaugmented_std": iter_summary.get("objective_unaugmented_std"),
             "bundles_solved": iter_summary.get("bundles_solved"),
             "bundles_missing": iter_summary.get("bundles_missing"),
         })
@@ -295,10 +360,16 @@ def run_distributed_ph(time_str: str, n_total: int, n_per_bundle: int, num_bundl
 
         print_iteration_row(k, gap, results, alpha=alpha)
 
-    status = "CONVERGED" if gap <= epsilon else f"MAX ITER ({max_iter})"
+    status = "CONVERGED" if gap <= gap_threshold else f"MAX ITER ({effective_max_iter})"
     print(f"{'':->82}")
     print(f"  Terminated: {status}  (gap={gap:.6f}, alpha={alpha:.4f})")
     print_final_consensus(consensus)
+
+    policy_dir = work_dir.parent if work_dir.name.startswith("combo_") else work_dir
+    policy_name = f"bidding_policy_pha_{_sanitize_time_str(time_str)}_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.json"
+    policy_path = policy_dir / policy_name
+    write_bidding_policy(consensus, policy_path)
+    print(f"[PH-SGE] Bidding policy written to: {policy_path}")
 
     _save_pickle(
         work_dir / "final_state.pkl",
@@ -330,6 +401,9 @@ def run_distributed_ph(time_str: str, n_total: int, n_per_bundle: int, num_bundl
         "adaptive_alpha": adaptive_alpha,
         "tau": tau,
         "mu": mu,
+        "gap_threshold": gap_threshold,
+        "gap_pct": gap_pct,
+        "epsilon": epsilon,
         "iteration_summaries": iteration_summaries,
     }
     _save_json(work_dir / "run_summary.json", run_summary)
@@ -346,6 +420,7 @@ def main() -> None:
     parser.add_argument("--alpha", type=float, default=100.0)
     parser.add_argument("--epsilon", type=float, default=1e-2)
     parser.add_argument("--max-iter", type=int, default=50)
+    parser.add_argument("--gap-pct", type=float, default=0.01)
     parser.add_argument("--adaptive-alpha", type=int, default=1)
     parser.add_argument("--tau", type=float, default=2.0)
     parser.add_argument("--mu", type=float, default=10.0)
@@ -363,6 +438,7 @@ def main() -> None:
         alpha=args.alpha,
         epsilon=args.epsilon,
         max_iter=args.max_iter,
+        gap_pct=args.gap_pct,
         adaptive_alpha=bool(args.adaptive_alpha),
         tau=args.tau,
         mu=args.mu,

@@ -8,11 +8,12 @@ import os
 
 if __name__ == "__main__":
 
-    mode = "extensive_form"
-    #mode = "progressive_hedging"
+    #mode = "extensive_form"
+    mode = "progressive_hedging"
 
-    time_str = "2025-04-04 08:00:00+00:00"
-    n = 4
+    path = "./input_data_10.csv"
+    time_str = "2025-06-12 20:00:00+00:00"
+    n = 6
     verbose = True
     seed = 30
 
@@ -21,14 +22,15 @@ if __name__ == "__main__":
         extensive_form.run_model(time_str, n, seed=seed, verbose=verbose)
 
     # --- Progressive Hedging: solve bundles ---
-    n_per_bundle = 3
-    num_bundles = 5
+    n_per_bundle = 2
+    num_bundles = 10
     alpha = 100
-    epsilon = 2
+    epsilon = 5
     adaptive_alpha = True
     tau = 2.0
-    mu = 10.0
-    max_iter = 50
+    mu = 5.0
+    gap_pct = 0.01
+    max_iter = 100
 
     if mode == "progressive_hedging":
         total_cores = max(1, os.cpu_count() or 1)
@@ -47,6 +49,7 @@ if __name__ == "__main__":
             alpha=alpha,
             epsilon=epsilon,
             max_iter=max_iter,
+            gap_pct=gap_pct,
             adaptive_alpha=adaptive_alpha,
             tau=tau,
             mu=mu,

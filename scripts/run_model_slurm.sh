@@ -14,6 +14,9 @@ if command -v module >/dev/null 2>&1; then
     module load gurobi/13.0 || echo "[WARN] Could not load module gurobi/13.0; assuming Gurobi is available via environment variables."
 fi
 
+# Force the cluster Gurobi license for all runs.
+export GRB_LICENSE_FILE="/share/apps/gurobi/13.0.0/gurobi_client.lic"
+
 # If conda is not on PATH (e.g., module unavailable), try common install locations.
 if ! command -v conda >/dev/null 2>&1; then
     for c in "$HOME/miniconda3/bin/conda" "$HOME/anaconda3/bin/conda" "/opt/conda/bin/conda"; do
@@ -33,7 +36,7 @@ fi
 eval "$(conda shell.bash hook)"
 
 # Ensure correct project directory
-cd /home/jorgenbs/Master/Kode
+cd /mnt/beegfs/users/jorgenbs/Kode
 
 # Create or update environment from environment.yml (conda-forge binaries)
 if ! conda env list | awk '{print $1}' | grep -qx "bidding_model_env"; then
@@ -51,17 +54,17 @@ python -c "import numpy, pandas, pyarrow, fastparquet, gurobipy; print(f'deps ok
 
 # ----- Progressive Hedging runtime config -----
 # Override these with environment variables at submit time if needed.
-TIME_STR="${TIME_STR:-2025-10-09 21:00:00+00:00}"
+TIME_STR="${TIME_STR:-2025-04-04 08:00:00+00:00}"
 N_TOTAL="${N_TOTAL:-20}"
 N_PER_BUNDLE="${N_PER_BUNDLE:-3}"
 NUM_BUNDLES="${NUM_BUNDLES:-100}"
 SEED="${SEED:-30}"
 ALPHA="${ALPHA:-100}"
 EPSILON="${EPSILON:-1}"
-MAX_ITER="${MAX_ITER:-50}"
+MAX_ITER="${MAX_ITER:-100}"
 ADAPTIVE_ALPHA="${ADAPTIVE_ALPHA:-1}"
 TAU="${TAU:-2.0}"
-MU="${MU:-10.0}"
+MU="${MU:-5.0}"
 PH_WORKDIR="${PH_WORKDIR:-ph_sge_runs/$JOB_ID}"
 
 # ----- Local parallelism config (single SGE compute node) -----

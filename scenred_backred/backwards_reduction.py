@@ -13,6 +13,14 @@ import pandas as pd
 TIME_CANDIDATES = ["time", "prediction_for", "created_at", "timestamp", "datetime"]
 DEFAULT_OUTPUT_ROOT = "reduced_data_26"
 DEFAULT_TARGET_SCENARIOS = 20
+DEFAULT_MARKETS = [
+	"dayahead",
+	"mfrr_cm_up",
+	"mfrr_cm_down",
+	"mfrr_eam_up",
+	"mfrr_eam_down",
+	"production",
+]
 
 
 @dataclass
@@ -55,6 +63,11 @@ def parse_args() -> argparse.Namespace:
 		help="Optional single parquet file to process instead of scanning the input root.",
 	)
 	parser.add_argument(
+		"--timestamp",
+		default=None,
+		help="Optional UTC timestamp to reduce (ISO 8601, e.g. 2025-01-01T00:00:00Z).",
+	)
+	parser.add_argument(
 		"--date",
 		default=None,
 		help="Optional date to reduce (YYYY-MM-DD).",
@@ -65,7 +78,20 @@ def parse_args() -> argparse.Namespace:
 		default=None,
 		help="Optional hour (0-23) to reduce.",
 	)
+	parser.add_argument(
+		"--markets",
+		nargs="*",
+		default=DEFAULT_MARKETS,
+		help="Market subdirectories under input root to include. Use 'all' to include every market.",
+	)
 	return parser.parse_args()
+
+
+def parse_timestamp(value: str) -> tuple[str, int]:
+	timestamp = pd.to_datetime(value, utc=True)
+	if timestamp is pd.NaT:
+		raise ValueError("timestamp could not be parsed")
+	return timestamp.strftime("%Y-%m-%d"), int(timestamp.hour)
 
 
 def find_time_column(columns: Iterable[str]) -> str | None:
@@ -356,7 +382,11 @@ def reduce_parquet_file(
 	return results
 
 
-def discover_input_files(input_root: Path, output_root: Path | None = None) -> list[Path]:
+def discover_input_files(
+	input_root: Path,
+	output_root: Path | None = None,
+	markets: Sequence[str] | None = None,
+) -> list[Path]:
 	files = []
 	output_root_resolved = output_root.resolve() if output_root is not None else None
 
@@ -369,6 +399,14 @@ def discover_input_files(input_root: Path, output_root: Path | None = None) -> l
 					continue
 			except Exception:
 				pass
+
+		if markets and "all" not in markets:
+			try:
+				relative_path = path.relative_to(input_root)
+				if not relative_path.parts or relative_path.parts[0] not in markets:
+					continue
+			except Exception:
+				continue
 		files.append(path)
 
 	return sorted(files)
@@ -378,13 +416,17 @@ def main() -> None:
 	args = parse_args()
 	input_root = Path(args.input_root)
 	output_root = Path(args.output_root)
+	if args.timestamp is not None:
+		if args.date is not None or args.hour is not None:
+			raise ValueError("--timestamp cannot be combined with --date or --hour")
+		args.date, args.hour = parse_timestamp(args.timestamp)
 	if args.hour is not None and not 0 <= args.hour <= 23:
 		raise ValueError("--hour must be in range 0-23")
 
 	if args.file is not None:
 		input_files = [Path(args.file)]
 	else:
-		input_files = discover_input_files(input_root, output_root)
+		input_files = discover_input_files(input_root, output_root, args.markets)
 
 	if not input_files:
 		print(f"No parquet files found in {input_root}")

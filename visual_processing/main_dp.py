@@ -8,11 +8,10 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "scenred_backred" / "updated_data_26"
 
 TIMESTAMPS_UTC = {
-    "T1": "2025-01-20 08:00:00+00:00",
-    "T2": "2025-04-15 16:00:00+00:00",
-    "T3": "2025-06-10 20:00:00+00:00",
-    "T4": "2025-10-04 05:00:00+00:00",
-    "T5": "2025-12-15 05:00:00+00:00",
+    "T1": "2025-04-06 08:00:00+00:00",
+    "T2": "2025-06-12 20:00:00+00:00",
+    "T3": "2025-08-22 13:00:00+00:00",
+    "T4": "2025-12-17 05:00:00+00:00",
 }
 
 PRODUCTION_AVAILABLE_FOR = "dayahead"
@@ -121,13 +120,6 @@ prices_dam_t4 = timestamp_data["T4"]["prices_dam"]
 prices_eam_up_t4 = timestamp_data["T4"]["prices_eam_up"]
 prices_eam_down_t4 = timestamp_data["T4"]["prices_eam_down"]
 forecasted_power_t4 = timestamp_data["T4"]["forecasted_power"]
-
-prices_cm_up_t5 = timestamp_data["T5"]["prices_cm_up"]
-prices_cm_down_t5 = timestamp_data["T5"]["prices_cm_down"]
-prices_dam_t5 = timestamp_data["T5"]["prices_dam"]
-prices_eam_up_t5 = timestamp_data["T5"]["prices_eam_up"]
-prices_eam_down_t5 = timestamp_data["T5"]["prices_eam_down"]
-forecasted_power_t5 = timestamp_data["T5"]["forecasted_power"]
 
 
 def summarize_timestamp(label):

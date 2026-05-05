@@ -1,4 +1,8 @@
+import json
 import math
+from datetime import datetime, timezone
+from pathlib import Path
+
 import src.read as read
 
 import gurobipy as gp
@@ -56,6 +60,7 @@ def solve_bundles(B, global_bounds, market_products, models=None, base_objs=None
     Returns:
         results: list of dicts, one per bundle, each containing:
             - "objective"   : optimal objective value (negated back to original maximization sense)
+            - "objective_unaugmented": unaugmented objective value (maximization sense)
             - "stage1"      : dict  {m: {"x": val, "r": val}}  for m in M_u  (CM markets)
                               (one representative value per market; NA enforced within each bundle)
             - "stage2"      : dict  {(m, u): {"x": val, "r": val}}  for m in M_v, u in U
@@ -135,6 +140,7 @@ def solve_bundles(B, global_bounds, market_products, models=None, base_objs=None
 
         bundle_result = {
             "objective": obj_val,
+            "objective_unaugmented": obj_val,
             "stage1": stage1,
             "stage2": stage2,
             "stage3": stage3,
@@ -580,11 +586,12 @@ def solve_bundles_augmented(B, global_bounds, W_shadow, consensus, alpha,
 
         # Add penalty to the base objective
         if models is not None:
-            mc.model.setObjective(base_objs[b_idx] + penalty, GRB.MINIMIZE)
+            base_obj_expr = base_objs[b_idx]
+            mc.model.setObjective(base_obj_expr + penalty, GRB.MINIMIZE)
         else:
             mc.model.update()
-            base_obj = mc.model.getObjective()
-            mc.model.setObjective(base_obj + penalty, GRB.MINIMIZE)
+            base_obj_expr = mc.model.getObjective()
+            mc.model.setObjective(base_obj_expr + penalty, GRB.MINIMIZE)
 
         mc.model.setParam("OutputFlag", 0)
         mc.model.optimize()
@@ -612,8 +619,13 @@ def solve_bundles_augmented(B, global_bounds, W_shadow, consensus, alpha,
             for m in M_w:
                 stage3[(m, v)] = {"x": x[m, w_rep].X, "r": r[m, w_rep].X}
 
+        unaug_obj_val = None
+        if base_obj_expr is not None:
+            unaug_obj_val = -base_obj_expr.getValue()
+
         bundle_result = {
             "objective": -mc.model.ObjVal,
+            "objective_unaugmented": unaug_obj_val,
             "stage1": stage1,
             "stage2": stage2,
             "stage3": stage3,
@@ -626,9 +638,127 @@ def solve_bundles_augmented(B, global_bounds, W_shadow, consensus, alpha,
     return results
 
 
+def _objective_mean(results, key="objective"):
+    objectives = [r.get(key) for r in results if r is not None and r.get(key) is not None]
+    if not objectives:
+        return None
+    return sum(objectives) / len(objectives)
+
+
+def _gap_threshold_from_objective(objective_mean, gap_pct, epsilon):
+    if objective_mean is None:
+        return epsilon
+    if not math.isfinite(objective_mean):
+        return epsilon
+    scaled = gap_pct * abs(objective_mean)
+    if scaled <= 0.0:
+        return epsilon
+    return scaled
+
+
+def _sanitize_time_str(time_str: str) -> str:
+    safe = []
+    for ch in time_str:
+        if ch.isalnum() or ch in ("-", "_", "."):
+            safe.append(ch)
+        else:
+            safe.append("_")
+    return "".join(safe)
+
+
+def _run_stamp() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+
+
+def format_final_consensus(consensus) -> str:
+    """Return a formatted consensus summary string."""
+    lines = []
+    lines.append("")
+    lines.append("=" * 82)
+    lines.append("  CONVERGED CONSENSUS DECISIONS")
+    lines.append("-" * 82)
+    for stage_name, label in [("stage1", "CM  (stage 1)"),
+                               ("stage2", "DA  (stage 2)"),
+                               ("stage3", "EAM (stage 3)")]:
+        stage = consensus[stage_name]
+        if not stage:
+            continue
+        lines.append("")
+        lines.append(f"  {label}  ({len(stage)} decision(s))")
+        lines.append(f"  {'Key':>30s}  {'x':>10s}  {'r':>10s}")
+        lines.append(f"  {'':->30s}  {'':->10s}  {'':->10s}")
+        for key, vals in stage.items():
+            lines.append(f"  {str(key):>30s}  {vals['x']:>10.4f}  {vals['r']:>10.4f}")
+    lines.append("")
+    lines.append("=" * 82)
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _json_safe(value):
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _tuple_sort_key(key):
+    if isinstance(key, tuple) and len(key) >= 2:
+        return (str(key[0]), str(key[1]))
+    return (str(key), "")
+
+
+def consensus_to_json(consensus):
+    stage1_entries = []
+    for m in sorted(consensus.get("stage1", {}).keys(), key=lambda k: str(k)):
+        vals = consensus["stage1"][m]
+        stage1_entries.append({
+            "m": _json_safe(m),
+            "x": float(vals["x"]),
+            "r": float(vals["r"]),
+        })
+
+    stage2_entries = []
+    for key in sorted(consensus.get("stage2", {}).keys(), key=_tuple_sort_key):
+        m, u = key
+        vals = consensus["stage2"][key]
+        stage2_entries.append({
+            "m": _json_safe(m),
+            "u": _json_safe(u),
+            "x": float(vals["x"]),
+            "r": float(vals["r"]),
+        })
+
+    stage3_entries = []
+    for key in sorted(consensus.get("stage3", {}).keys(), key=_tuple_sort_key):
+        m, v = key
+        vals = consensus["stage3"][key]
+        stage3_entries.append({
+            "m": _json_safe(m),
+            "v": _json_safe(v),
+            "x": float(vals["x"]),
+            "r": float(vals["r"]),
+        })
+
+    return {
+        "stage1": stage1_entries,
+        "stage2": stage2_entries,
+        "stage3": stage3_entries,
+    }
+
+
+def write_bidding_policy(consensus, output_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", encoding="utf-8") as handle:
+        json.dump(consensus_to_json(consensus), handle, indent=2)
+
+
 def run_progressive_hedging(time_str, n_total, n_per_bundle, num_bundles, seed=0, verbose=True,
-                            alpha=100, epsilon=1e-2, max_iter=50,
-                            adaptive_alpha=True, tau=2.0, mu=10.0):
+                            alpha=100, epsilon=1e-2, max_iter=50, gap_pct=0.01,
+                            adaptive_alpha=True, tau=2.0, mu=10.0,
+                            bidding_output_dir: str | Path | None = None):
     """
     Entry point for the Progressive Hedging algorithm.
 
@@ -643,11 +773,13 @@ def run_progressive_hedging(time_str, n_total, n_per_bundle, num_bundles, seed=0
         seed:           base seed for bundle generation
         verbose:        print progress info
         alpha:          PH penalty parameter (initial value)
-        epsilon:        convergence tolerance
+        epsilon:        fallback convergence tolerance when objective mean is unavailable
         max_iter:       maximum number of PH iterations
+        gap_pct:        convergence threshold as a fraction of |objective_unaugmented_mean|
         adaptive_alpha: if True, use residual-balancing to adapt alpha each iteration
         tau:            scaling factor for alpha adjustments (default 2.0)
         mu:             threshold ratio for triggering adjustment (default 10.0)
+        bidding_output_dir: optional directory for writing a bidding policy file
 
     Returns:
         B:         list of scenario tree dicts
@@ -694,6 +826,9 @@ def run_progressive_hedging(time_str, n_total, n_per_bundle, num_bundles, seed=0
     # Step 12: Compute initial convergence gap
     g = compute_convergence_gap(results, consensus, market_products)
     k = 0
+    mean_obj = _objective_mean(results, key="objective_unaugmented")
+    gap_threshold = _gap_threshold_from_objective(mean_obj, gap_pct, epsilon)
+    effective_max_iter = min(int(max_iter), 100)
 
     if verbose:
         print_iteration_row(k, g, results, alpha=alpha)
@@ -701,7 +836,7 @@ def run_progressive_hedging(time_str, n_total, n_per_bundle, num_bundles, seed=0
     # ------------------------------------------------------------------
     # Steps 12-16: Iterative improvements
     # ------------------------------------------------------------------
-    while g > epsilon and k < max_iter:
+    while g > gap_threshold and k < effective_max_iter:
         # Step 13: increment iteration counter
         k += 1
 
@@ -720,6 +855,8 @@ def run_progressive_hedging(time_str, n_total, n_per_bundle, num_bundles, seed=0
 
         # Step 24: Recompute convergence gap
         g = compute_convergence_gap(results, consensus, market_products)
+        mean_obj = _objective_mean(results, key="objective_unaugmented")
+        gap_threshold = _gap_threshold_from_objective(mean_obj, gap_pct, epsilon)
 
         # Adaptive alpha: residual-balancing
         if adaptive_alpha:
@@ -730,10 +867,18 @@ def run_progressive_hedging(time_str, n_total, n_per_bundle, num_bundles, seed=0
             print_iteration_row(k, g, results, alpha=alpha)
 
     if verbose:
-        status = "CONVERGED" if g <= epsilon else f"MAX ITER ({max_iter})"
+        status = "CONVERGED" if g <= gap_threshold else f"MAX ITER ({effective_max_iter})"
         print(f"{'':->82}")
         print(f"  Terminated: {status}  (gap={g:.6f}, alpha={alpha:.4f})")
         print_final_consensus(consensus)
+
+    if bidding_output_dir is not None:
+        output_dir = Path(bidding_output_dir)
+        safe_time = _sanitize_time_str(time_str)
+        policy_path = output_dir / f"bidding_policy_pha_{safe_time}_{_run_stamp()}.json"
+        write_bidding_policy(consensus, policy_path)
+        if verbose:
+            print(f"[PH] Bidding policy written to: {policy_path}")
 
     return B, results, consensus, W_shadow
 
@@ -762,18 +907,4 @@ def print_iteration_row(k, gap, results, alpha=None):
 
 def print_final_consensus(consensus):
     """Print a compact summary of the converged consensus decisions."""
-    print(f"\n{'':=<82}")
-    print("  CONVERGED CONSENSUS DECISIONS")
-    print(f"{'':->82}")
-    for stage_name, label in [("stage1", "CM  (stage 1)"),
-                               ("stage2", "DA  (stage 2)"),
-                               ("stage3", "EAM (stage 3)")]:
-        stage = consensus[stage_name]
-        if not stage:
-            continue
-        print(f"\n  {label}  ({len(stage)} decision(s))")
-        print(f"  {'Key':>30s}  {'x':>10s}  {'r':>10s}")
-        print(f"  {'':->30s}  {'':->10s}  {'':->10s}")
-        for key, vals in stage.items():
-            print(f"  {str(key):>30s}  {vals['x']:>10.4f}  {vals['r']:>10.4f}")
-    print(f"\n{'':=<82}\n")
+    print(format_final_consensus(consensus), end="")

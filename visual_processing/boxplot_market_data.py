@@ -3,11 +3,11 @@ import numpy as np
 
 # Import all price lists from main.py
 from visual_processing.main_dp import (
-    prices_cm_up_t1, prices_cm_up_t2, prices_cm_up_t3, prices_cm_up_t4, prices_cm_up_t5,
-    prices_cm_down_t1, prices_cm_down_t2, prices_cm_down_t3, prices_cm_down_t4, prices_cm_down_t5,
-    prices_dam_t1, prices_dam_t2, prices_dam_t3, prices_dam_t4, prices_dam_t5,
-    prices_eam_up_t1, prices_eam_up_t2, prices_eam_up_t3, prices_eam_up_t4, prices_eam_up_t5,
-    prices_eam_down_t1, prices_eam_down_t2, prices_eam_down_t3, prices_eam_down_t4, prices_eam_down_t5,
+    prices_cm_up_t1, prices_cm_up_t2, prices_cm_up_t3, prices_cm_up_t4,
+    prices_cm_down_t1, prices_cm_down_t2, prices_cm_down_t3, prices_cm_down_t4,
+    prices_dam_t1, prices_dam_t2, prices_dam_t3, prices_dam_t4,
+    prices_eam_up_t1, prices_eam_up_t2, prices_eam_up_t3, prices_eam_up_t4,
+    prices_eam_down_t1, prices_eam_down_t2, prices_eam_down_t3, prices_eam_down_t4,
 )
 
 MARKETS = {
@@ -16,35 +16,30 @@ MARKETS = {
         prices_cm_up_t2,
         prices_cm_up_t3,
         prices_cm_up_t4,
-        prices_cm_up_t5,
     ],
     "CM down": [
         prices_cm_down_t1,
         prices_cm_down_t2,
         prices_cm_down_t3,
         prices_cm_down_t4,
-        prices_cm_down_t5,
     ],
     "DAM": [
         prices_dam_t1,
         prices_dam_t2,
         prices_dam_t3,
         prices_dam_t4,
-        prices_dam_t5,
     ],
     "EAM up": [
         prices_eam_up_t1,
         prices_eam_up_t2,
         prices_eam_up_t3,
         prices_eam_up_t4,
-        prices_eam_up_t5,
     ],
     "EAM down": [
         prices_eam_down_t1,
         prices_eam_down_t2,
         prices_eam_down_t3,
         prices_eam_down_t4,
-        prices_eam_down_t5,
     ],
 }
 
@@ -79,7 +74,7 @@ def _plot_market_axes(axes, markets, x_labels, positions, y_limits):
 
 
 def plot_price_boxplots():
-    x_labels = ["T1", "T2", "T3", "T4", "T5"]
+    x_labels = ["T1", "T2", "T3", "T4"]
     positions = np.arange(1, len(x_labels) + 1) * 0.8
 
     all_values = [v for series in MARKETS.values() for ts in series for v in ts]
