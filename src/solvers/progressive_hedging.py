@@ -61,6 +61,7 @@ def solve_bundles(B, global_bounds, market_products, models=None, base_objs=None
     Returns:
         results: list of dicts, one per bundle, each containing:
             - "objective"   : optimal objective value (negated back to original maximization sense)
+            - "objective_unaugmented": unaugmented objective value (maximization sense)
             - "stage1"      : dict  {m: {"x": val, "r": val}}  for m in M_u  (CM markets)
                               (one representative value per market; NA enforced within each bundle)
             - "stage2"      : dict  {(m, u): {"x": val, "r": val}}  for m in M_v, u in U
@@ -140,6 +141,7 @@ def solve_bundles(B, global_bounds, market_products, models=None, base_objs=None
 
         bundle_result = {
             "objective": obj_val,
+            "objective_unaugmented": obj_val,
             "stage1": stage1,
             "stage2": stage2,
             "stage3": stage3,
@@ -585,11 +587,12 @@ def solve_bundles_augmented(B, global_bounds, W_shadow, consensus, alpha,
 
         # Add penalty to the base objective
         if models is not None:
-            mc.model.setObjective(base_objs[b_idx] + penalty, GRB.MINIMIZE)
+            base_obj_expr = base_objs[b_idx]
+            mc.model.setObjective(base_obj_expr + penalty, GRB.MINIMIZE)
         else:
             mc.model.update()
-            base_obj = mc.model.getObjective()
-            mc.model.setObjective(base_obj + penalty, GRB.MINIMIZE)
+            base_obj_expr = mc.model.getObjective()
+            mc.model.setObjective(base_obj_expr + penalty, GRB.MINIMIZE)
 
         mc.model.setParam("OutputFlag", 0)
         mc.model.optimize()
@@ -617,8 +620,13 @@ def solve_bundles_augmented(B, global_bounds, W_shadow, consensus, alpha,
             for m in M_w:
                 stage3[(m, v)] = {"x": x[m, w_rep].X, "r": r[m, w_rep].X}
 
+        unaug_obj_val = None
+        if base_obj_expr is not None:
+            unaug_obj_val = -base_obj_expr.getValue()
+
         bundle_result = {
             "objective": -mc.model.ObjVal,
+            "objective_unaugmented": unaug_obj_val,
             "stage1": stage1,
             "stage2": stage2,
             "stage3": stage3,
@@ -631,8 +639,8 @@ def solve_bundles_augmented(B, global_bounds, W_shadow, consensus, alpha,
     return results
 
 
-def _objective_mean(results):
-    objectives = [r["objective"] for r in results if r is not None and "objective" in r]
+def _objective_mean(results, key="objective"):
+    objectives = [r.get(key) for r in results if r is not None and r.get(key) is not None]
     if not objectives:
         return None
     return sum(objectives) / len(objectives)
@@ -647,12 +655,6 @@ def _gap_threshold_from_objective(objective_mean, gap_pct, epsilon):
     if scaled <= 0.0:
         return epsilon
     return scaled
-
-
-def _gap_threshold_for_iter(k, objective_mean, gap_pct, epsilon, warmup_iters=30):
-    if k < warmup_iters:
-        return epsilon
-    return _gap_threshold_from_objective(objective_mean, gap_pct, epsilon)
 
 
 def _sanitize_time_str(time_str: str) -> str:
@@ -774,7 +776,7 @@ def run_progressive_hedging(time_str, n_total, n_per_bundle, num_bundles, seed=0
         alpha:          PH penalty parameter (initial value)
         epsilon:        fallback convergence tolerance when objective mean is unavailable
         max_iter:       maximum number of PH iterations
-        gap_pct:        convergence threshold as a fraction of |objective_mean|
+        gap_pct:        convergence threshold as a fraction of |objective_unaugmented_mean|
         adaptive_alpha: if True, use residual-balancing to adapt alpha each iteration
         tau:            scaling factor for alpha adjustments (default 2.0)
         mu:             threshold ratio for triggering adjustment (default 10.0)
@@ -825,8 +827,8 @@ def run_progressive_hedging(time_str, n_total, n_per_bundle, num_bundles, seed=0
     # Step 12: Compute initial convergence gap
     g = compute_convergence_gap(results, consensus, market_products)
     k = 0
-    mean_obj = _objective_mean(results)
-    gap_threshold = _gap_threshold_for_iter(k, mean_obj, gap_pct, epsilon)
+    mean_obj = _objective_mean(results, key="objective_unaugmented")
+    gap_threshold = _gap_threshold_from_objective(mean_obj, gap_pct, epsilon)
     effective_max_iter = min(int(max_iter), 100)
 
     if verbose:
@@ -854,8 +856,8 @@ def run_progressive_hedging(time_str, n_total, n_per_bundle, num_bundles, seed=0
 
         # Step 24: Recompute convergence gap
         g = compute_convergence_gap(results, consensus, market_products)
-        mean_obj = _objective_mean(results)
-        gap_threshold = _gap_threshold_for_iter(k, mean_obj, gap_pct, epsilon)
+        mean_obj = _objective_mean(results, key="objective_unaugmented")
+        gap_threshold = _gap_threshold_from_objective(mean_obj, gap_pct, epsilon)
 
         # Adaptive alpha: residual-balancing
         if adaptive_alpha:

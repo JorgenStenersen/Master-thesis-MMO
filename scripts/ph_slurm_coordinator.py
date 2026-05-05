@@ -63,13 +63,6 @@ def _gap_threshold_from_objective(objective_mean: float | None, gap_pct: float, 
     return scaled
 
 
-def _gap_threshold_for_iter(iteration: int, objective_mean: float | None,
-                            gap_pct: float, epsilon: float, warmup_iters: int = 30) -> float:
-    if iteration < warmup_iters:
-        return epsilon
-    return _gap_threshold_from_objective(objective_mean, gap_pct, epsilon)
-
-
 def _run_bundle_batch(mode: str, iteration: int, num_bundles: int, static_file: Path,
                       out_dir: Path, max_workers: int, gurobi_threads: int,
                       consensus: dict | None = None,
@@ -120,6 +113,11 @@ def _run_bundle_batch(mode: str, iteration: int, num_bundles: int, static_file: 
     elapsed = end_ts - start_ts
 
     objectives = [r["objective"] for r in results if r is not None and "objective" in r]
+    unaug_objectives = [
+        r.get("objective_unaugmented")
+        for r in results
+        if r is not None and r.get("objective_unaugmented") is not None
+    ]
     obj_min = min(objectives) if objectives else None
     obj_max = max(objectives) if objectives else None
     obj_mean = None
@@ -127,6 +125,16 @@ def _run_bundle_batch(mode: str, iteration: int, num_bundles: int, static_file: 
     if objectives:
         obj_mean = sum(objectives) / len(objectives)
         obj_std = (sum((o - obj_mean) ** 2 for o in objectives) / len(objectives)) ** 0.5
+
+    obj_unaug_min = min(unaug_objectives) if unaug_objectives else None
+    obj_unaug_max = max(unaug_objectives) if unaug_objectives else None
+    obj_unaug_mean = None
+    obj_unaug_std = None
+    if unaug_objectives:
+        obj_unaug_mean = sum(unaug_objectives) / len(unaug_objectives)
+        obj_unaug_std = (
+            sum((o - obj_unaug_mean) ** 2 for o in unaug_objectives) / len(unaug_objectives)
+        ) ** 0.5
 
     iter_summary = {
         "iteration": iteration,
@@ -140,6 +148,10 @@ def _run_bundle_batch(mode: str, iteration: int, num_bundles: int, static_file: 
         "objective_max": obj_max,
         "objective_mean": obj_mean,
         "objective_std": obj_std,
+        "objective_unaugmented_min": obj_unaug_min,
+        "objective_unaugmented_max": obj_unaug_max,
+        "objective_unaugmented_mean": obj_unaug_mean,
+        "objective_unaugmented_std": obj_unaug_std,
         "start_utc": start_utc,
         "end_utc": end_utc,
     }
@@ -251,9 +263,8 @@ def run_distributed_ph(time_str: str, n_total: int, n_per_bundle: int, num_bundl
     w_shadow = initialize_shadow_costs(results, consensus, alpha=alpha, verbose=False)
     gap = compute_convergence_gap(results, consensus, market_products)
     k = 0
-    gap_threshold = _gap_threshold_for_iter(
-        k,
-        iter_summary.get("objective_mean"),
+    gap_threshold = _gap_threshold_from_objective(
+        iter_summary.get("objective_unaugmented_mean"),
         gap_pct,
         epsilon,
     )
@@ -278,6 +289,10 @@ def run_distributed_ph(time_str: str, n_total: int, n_per_bundle: int, num_bundl
         "objective_max": iter_summary.get("objective_max"),
         "objective_mean": iter_summary.get("objective_mean"),
         "objective_std": iter_summary.get("objective_std"),
+        "objective_unaugmented_min": iter_summary.get("objective_unaugmented_min"),
+        "objective_unaugmented_max": iter_summary.get("objective_unaugmented_max"),
+        "objective_unaugmented_mean": iter_summary.get("objective_unaugmented_mean"),
+        "objective_unaugmented_std": iter_summary.get("objective_unaugmented_std"),
         "bundles_solved": iter_summary.get("bundles_solved"),
         "bundles_missing": iter_summary.get("bundles_missing"),
     })
@@ -305,9 +320,8 @@ def run_distributed_ph(time_str: str, n_total: int, n_per_bundle: int, num_bundl
         consensus = compute_consensus(results, verbose=False)
         w_shadow = update_shadow_costs(w_shadow, results, consensus, alpha)
         gap = compute_convergence_gap(results, consensus, market_products)
-        gap_threshold = _gap_threshold_for_iter(
-            k,
-            iter_summary.get("objective_mean"),
+        gap_threshold = _gap_threshold_from_objective(
+            iter_summary.get("objective_unaugmented_mean"),
             gap_pct,
             epsilon,
         )
@@ -335,6 +349,10 @@ def run_distributed_ph(time_str: str, n_total: int, n_per_bundle: int, num_bundl
             "objective_max": iter_summary.get("objective_max"),
             "objective_mean": iter_summary.get("objective_mean"),
             "objective_std": iter_summary.get("objective_std"),
+            "objective_unaugmented_min": iter_summary.get("objective_unaugmented_min"),
+            "objective_unaugmented_max": iter_summary.get("objective_unaugmented_max"),
+            "objective_unaugmented_mean": iter_summary.get("objective_unaugmented_mean"),
+            "objective_unaugmented_std": iter_summary.get("objective_unaugmented_std"),
             "bundles_solved": iter_summary.get("bundles_solved"),
             "bundles_missing": iter_summary.get("bundles_missing"),
         })

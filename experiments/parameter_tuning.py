@@ -168,15 +168,15 @@ def main(cli_args: dict | None = None):
 if __name__ == "__main__":
     # Default run settings (can be overridden by passing a dict to main)
     cli_defaults = {
-        "time_str": "2025-01-15 16:00:00+00:00",
-        "n_total": 10,
+        "time_str": "2025-04-06 08:00:00+00:00",
+        "n_total": 6,
         "n_per_bundle": 2,
-        "num_bundles": 5,
+        "num_bundles": 108,
         "seed": 1,
         "epsilon": 1e-2,
         "max_iter": 50,
         "work_dir": "ph_hyperopt_runs",
-        "n_trials": 4,
+        "n_trials": 30,
         "n_jobs": 1,
         "study_name": "ph_opt",
         "max_workers": 2,
@@ -188,6 +188,6 @@ if __name__ == "__main__":
 
 #How to run:
 # python experiments/parameter_tuning.py ^
-#  --time-str "2025-01-15 16:00:00+00:00" ^
+#  --time-str "2025-04-06 08:00:00+00:00" ^
 #  --n-total 10 --n-per-bundle 2 --num-bundles 5 ^
-#  --n-trials 20 --max-workers 2 --gurobi-threads-per-bundle 1# 
+#  --n-trials 20 --max-workers 2 --gurobi-threads-per-bundle 1 
