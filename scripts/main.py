@@ -9,8 +9,8 @@ import os
 
 if __name__ == "__main__":
 
-    mode = "extensive_form"
-    #mode = "progressive_hedging"
+    #mode = "extensive_form"
+    mode = "progressive_hedging"
 
     path = "./input_data_10.csv"
     time_str = "2025-06-12 20:00:00+00:00"
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     epsilon = 5
     adaptive_alpha = True
     tau = 2.0
-    mu =5.0
+    mu = 5.0
     gap_pct = 0.01
     max_iter = 100
 

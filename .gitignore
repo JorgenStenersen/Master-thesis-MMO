@@ -18,6 +18,7 @@ ph_sge_runs/
 *.pickle
 *.joblib
 *.zip
+*.json
 
 bounds_summary_2026.csv
 
