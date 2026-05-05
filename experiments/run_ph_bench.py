@@ -10,8 +10,8 @@ Usage examples:
     python experiments.run_ph_bench \
         --time-str "2025-04-04 08:00:00+00:00" \
         --time-str "2025-06-10 20:00:00+00:00" \
-        --time-str "2025-08-22 13:00:00+00:00" \
-        --time-str "2025-12-17 05:00:00+00:00" \
+        --time-str "2025-08-20 13:00:00+00:00" \
+        --time-str "2025-12-15 05:00:00+00:00" \
         --extensive-n 3 \
         --combo 3:1:3 --combo 3:1:6 \
         --out results/ph_bench.csv

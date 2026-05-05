@@ -4,8 +4,7 @@ from scripts.ph_slurm_coordinator import run_distributed_ph
 from pathlib import Path
 from datetime import datetime
 import os
-#from experiments.robustness import run_robustness_experiment
-#from experiments.benchmark import run_deterministic_benchmark
+
 
 if __name__ == "__main__":
 
@@ -17,7 +16,7 @@ if __name__ == "__main__":
     n = 6
     verbose = True
     seed = 30
-    #number_of_runs = 20
+
     
     if mode == "extensive_form":
         extensive_form.run_model(time_str, n, seed=seed, verbose=verbose)
@@ -61,6 +60,3 @@ if __name__ == "__main__":
 
         if verbose:
             print(f"[INFO] PH artifacts written under: {work_dir}")
-
-    # run_robustness_experiment(time_str, n, number_of_runs, 5)
-    #run_deterministic_benchmark(time_str, n, seed 

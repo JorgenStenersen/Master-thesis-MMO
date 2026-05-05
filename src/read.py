@@ -256,6 +256,8 @@ def _ensure_reduced_forecast_slice(
     area: str,
     park: str,
 ) -> tuple[list[float], list[float]]:
+
+
     reduced_parquet = REDUCTION_OUTPUT_ROOT / filename
 
     REDUCTION_OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
@@ -296,6 +298,7 @@ def _ensure_reduced_forecast_slice(
         park=park,
         scenario_columns=output_columns,
     )
+
     if reduced_values is None:
         raise ValueError(f"No reduced forecast rows found in {reduced_parquet} for {target_time}")
 
@@ -311,155 +314,12 @@ def _ensure_reduced_forecast_slice(
     return reduced_values, probabilities
 
 
-def load_market_data(
-    time_str: str,
-    raw_path: str = "data",
-    area: str = "NO3",
-    park: str = "roan",
-):
-    """
-    Load all relevant market data for a given time (string, UTC),
-    and return a dict with:
-      - forecast files: lists of 50 values (columns '0'..'49')
-        for the FIRST forecast (by created_at) with prediction_for == time
-      - realized price/production files: the value at that exact time
-    """
-
-    target_time = pd.to_datetime(time_str, utc=True)
-    results = {}
-
-    file_mapping = {
-        "dayahead_forecasts.parquet": "dayahead_forecasts",
-        "dayahead_prices.parquet": "dayahead_prices",
-        "imbalance_forecasts.parquet": "imbalance_forecasts",
-        "imbalance_prices.parquet": "imbalance_prices",
-        "mfrr_cm_down_forecasts.parquet": "mfrr_cm_down_forecasts",
-        "mfrr_cm_down_prices.parquet": "mfrr_cm_down_prices",
-        "mfrr_cm_up_forecasts.parquet": "mfrr_cm_up_forecasts",
-        "mfrr_cm_up_prices.parquet": "mfrr_cm_up_prices",
-        "mfrr_eam_down_forecasts.parquet": "mfrr_eam_down_forecasts",
-        "mfrr_eam_down_prices.parquet": "mfrr_eam_down_prices",
-        "mfrr_eam_up_forecasts.parquet": "mfrr_eam_up_forecasts",
-        "mfrr_eam_up_prices.parquet": "mfrr_eam_up_prices",
-        "production_forecasts.parquet": "production_forecasts",
-        "production.parquet": "production",
-    }
-
-    for filename, var_name in file_mapping.items():
-        file_path = os.path.join(raw_path, filename)
-
-        if not os.path.exists(file_path):
-            print(f"[WARNING] File not found: {file_path}")
-            results[var_name] = None
-            continue
-
-        df = pd.read_parquet(file_path)
-        df = _reset_if_time_in_index(df)  # <--- important fix
-
-        # --- Forecast-style files ---
-        if "prediction_for" in df.columns:
-            df = df.copy()
-            df["prediction_for_dt"] = _to_utc_datetime(df["prediction_for"])
-            mask = df["prediction_for_dt"] == target_time
-
-            if "area" in df.columns:
-                mask &= df["area"] == area
-            if "park" in df.columns:
-                mask &= df["park"] == park
-
-            df_match = df.loc[mask]
-
-            if df_match.empty:
-                # Small debug helper: show min/max available prediction_for
-                pf_sample = df["prediction_for_dt"].sort_values().dropna()
-                if not pf_sample.empty:
-                    print(
-                        f"[WARNING] No forecast rows in {filename} for {target_time}. "
-                        f"Available range: {pf_sample.iloc[0]} – {pf_sample.iloc[-1]}"
-                    )
-                else:
-                    print(
-                        f"[WARNING] No forecast rows in {filename} for {target_time} "
-                        f"and prediction_for_dt is empty/NaN."
-                    )
-                results[var_name] = None
-                continue
-
-            # FIRST forecast: earliest created_at
-            if "created_at" in df_match.columns:
-                df_match = df_match.sort_values("created_at").head(1)
-                print(f"Using forecast from {var_name}, created_at: {df_match['created_at'].iloc[0]}")
-            else:
-                df_match = df_match.head(1)
-                print("No created_at column; using first row.")
-
-            scenario_columns = _extract_scenario_columns(df_match)
-            if not scenario_columns:
-                print(f"[WARNING] No scenario columns in {filename}")
-                results[var_name] = None
-                continue
-
-            row = df_match.iloc[0]
-            results[var_name] = row[scenario_columns].astype(float).tolist()
-
-        # --- Realized-style files (prices & production) ---
-        elif "time" in df.columns:
-            df = df.copy()
-            df["time_dt"] = _to_utc_datetime(df["time"])
-            mask = df["time_dt"] == target_time
-
-            if "area" in df.columns:
-                mask &= df["area"] == area
-            if "park" in df.columns:
-                mask &= df["park"] == park
-
-            df_match = df.loc[mask]
-
-            if df_match.empty:
-                t_sample = df["time_dt"].sort_values().dropna()
-                if not t_sample.empty:
-                    print(
-                        f"[WARNING] No realized rows in {filename} for {target_time}. "
-                        f"Available range: {t_sample.iloc[0]} – {t_sample.iloc[-1]}"
-                    )
-                else:
-                    print(
-                        f"[WARNING] No realized rows in {filename} for {target_time} "
-                        f"and time_dt is empty/NaN."
-                    )
-                results[var_name] = None
-                continue
-
-            value_cols = [
-                c
-                for c in [
-                    "dayahead_price",
-                    "imbalance_price",
-                    "mfrr_price",
-                    "production",
-                ]
-                if c in df_match.columns
-            ]
-
-            if not value_cols:
-                results[var_name] = df_match.to_dict(orient="records")
-            else:
-                results[var_name] = df_match[value_cols].to_dict(orient="records")
-
-        else:
-            print(
-                f"[WARNING] {filename} has neither 'prediction_for' nor 'time' as columns "
-                f"(after index reset). Columns: {list(df.columns)}"
-            )
-            results[var_name] = None
-
-    return results
-
 
 def load_mmo_data(path):
     df = pd.read_parquet(path)
 
     print(df.head(6))
+
 
 def load_parameters_from_parquet(time_str: str, scenarios: int, seed=None, use_reduced_scenarios: bool = True):
     print(f"\nLoading market data for time: {time_str}")
@@ -467,12 +327,7 @@ def load_parameters_from_parquet(time_str: str, scenarios: int, seed=None, use_r
     date_str = target_time.strftime("%Y-%m-%d")
     hour = int(target_time.hour)
 
-    data = load_market_data(
-        time_str=time_str,
-        raw_path="data",
-        area="NO3",
-        park="roan",
-    )
+    data = {}
 
     probabilities: dict[str, list[float]] = {}
     if use_reduced_scenarios:
@@ -510,119 +365,19 @@ def load_parameters_from_parquet(time_str: str, scenarios: int, seed=None, use_r
     for i in range(len(EAM_down)):
         EAM_down[i] = -EAM_down[i]
 
-    if probabilities:
-        CM_up_sel = CM_up
-        CM_down_sel = CM_down
-        DA_sel = DA
-        EAM_up_sel = EAM_up
-        EAM_down_sel = EAM_down
-        wind_speed_sel = wind_speed
-    else:
-        # We have added seed to be able to generate the same random numbers
-        CM_up_sel, CM_down_sel, DA_sel, EAM_up_sel, EAM_down_sel, wind_speed_sel, _ = utils.select_possible_realizations(
-            scenarios, CM_up, CM_down, DA, EAM_up, EAM_down, wind_speed, seed
-        )
-
     input_data = {
-        "CM_up": CM_up_sel,
-        "CM_down": CM_down_sel,
-        "DA": DA_sel,
-        "EAM_up": EAM_up_sel,
-        "EAM_down": EAM_down_sel,
-        "wind_speed": wind_speed_sel,
+        "CM_up": CM_up,
+        "CM_down": CM_down,
+        "DA": DA,
+        "EAM_up": EAM_up,
+        "EAM_down": EAM_down,
+        "wind_speed": wind_speed,
     }
-    if probabilities:
-        input_data["probabilities"] = probabilities
+    
+    input_data["probabilities"] = probabilities
 
     return input_data
 
-
-def get_global_bounds_from_raw_data(time_str: str):
-    """
-    Henter globale grenseverdier direkte fra rå markedsdata for et gitt tidspunkt.
-    
-    Dette uten å bygge hele scenario-treet eller velge ut scenarios.
-    Brukes når du trenger Big-M konstanter før modelbygging.
-    
-    Args:
-        time_str: Tidspunkt som string (f.eks. "2025-10-05")
-    
-    Returns:
-        Dict med:
-        - "Qmax": Høyeste produksjonkapasitet (wind speed) på tvers av alle forecasts
-        - "Pmax": Høyeste pris på tvers av alle markeder og alle forecasts
-        - "Pmax_per_market": Dict med høyeste pris per marked
-                            Nøkler: "CM_up", "CM_down", "DA", "EAM_up", "EAM_down", "imbalance"
-    """
-    
-    print(f"\nLoading global bounds for time: {time_str}")
-    data = load_market_data(
-        time_str=time_str,
-        raw_path="data",
-        area="NO3",
-        park="roan",
-    )
-    
-    # Samle alle priser
-    all_prices = []
-    Pmax_per_market = {}
-    
-    # CM markets
-    if data["mfrr_cm_up_forecasts"]:
-        cm_up_prices = [float(p) for p in data["mfrr_cm_up_forecasts"]]
-        Pmax_per_market["CM_up"] = max(cm_up_prices)
-        all_prices.extend(cm_up_prices)
-    
-    if data["mfrr_cm_down_forecasts"]:
-        cm_down_prices = [float(p) for p in data["mfrr_cm_down_forecasts"]]
-        Pmax_per_market["CM_down"] = max(cm_down_prices)
-        all_prices.extend(cm_down_prices)
-    
-    # DA market
-    if data["dayahead_forecasts"]:
-        da_prices = [float(p) for p in data["dayahead_forecasts"]]
-        Pmax_per_market["DA"] = max(da_prices)
-        all_prices.extend(da_prices)
-    
-    # EAM markets
-    if data["mfrr_eam_up_forecasts"]:
-        eam_up_prices = [float(p) for p in data["mfrr_eam_up_forecasts"]]
-        Pmax_per_market["EAM_up"] = max(eam_up_prices)
-        all_prices.extend(eam_up_prices)
-    
-    if data["mfrr_eam_down_forecasts"]:
-        eam_down_prices = [float(p) for p in data["mfrr_eam_down_forecasts"]]
-        # EAM_down er negativ i dataene, så tar abs for å få maksimal verdi
-        Pmax_per_market["EAM_down"] = max(abs(p) for p in eam_down_prices)
-        all_prices.extend([abs(p) for p in eam_down_prices])
-    
-    # Imbalance prices (hvis tilgjengelig)
-    if data["imbalance_forecasts"]:
-        imb_prices = [float(p) for p in data["imbalance_forecasts"]]
-        Pmax_per_market["imbalance"] = max(imb_prices)
-        all_prices.extend(imb_prices)
-    
-    # Samle alle produksjonsverdier
-    Qmax = 0
-    if data["production_forecasts"]:
-        wind_speeds = [float(w) for w in data["production_forecasts"]]
-        Qmax = max(wind_speeds)
-    
-    # Finn høyeste pris på tvers av alle markeder
-    Pmax = max(all_prices) if all_prices else 0
-    
-    global_bounds = {
-        "Qmax": Qmax,
-        "Pmax": Pmax,
-        "Pmax_per_market": Pmax_per_market
-    }
-    
-    print(f"[OK] Global bounds computed:")
-    print(f"  - Qmax: {Qmax:.4f}")
-    print(f"  - Pmax: {Pmax:.4f}")
-    print(f"  - Markets with data: {list(Pmax_per_market.keys())}")
-    
-    return global_bounds
 
 
 def get_global_bounds_from_input_data(input_data: dict):

@@ -10,7 +10,6 @@ import os
 import src.read as read
 import src.utils as utils
 from src.model import build_model, initialize_run
-from src.read import get_global_bounds_from_raw_data
 import src.tree as tree
 
 
