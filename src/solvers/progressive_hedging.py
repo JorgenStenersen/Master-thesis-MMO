@@ -11,7 +11,6 @@ from gurobipy import GRB
 import src.utils as utils
 from src.model import build_model, get_market_products
 import src.tree as tree
-from src.read import get_global_bounds_from_raw_data
 
 
 def build_bundle_models(B, global_bounds, verbose=False, gurobi_threads=None):

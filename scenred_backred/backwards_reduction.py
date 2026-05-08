@@ -483,10 +483,4 @@ python scenred_backred/backwards_reduction.py --file scenred_backred/updated_dat
 To run on all parquet files under updated_data_26:
 python scenred_backred/backwards_reduction.py --input-root scenred_backred/updated_data_26 --target-scenarios 20 --output-root scenred_backred/reduced_data_26
 
-To run for all markets at a specific timestamp:
-python scenred_backred/backwards_reduction.py --input-root scenred_backred/updated_data_26 --output-root scenred_backred/reduced_data_26 --target-scenarios 20 --timestamp 2025-01-01T00:00:00Z
-
-To run for every market under the input root:
-python scenred_backred/backwards_reduction.py --input-root scenred_backred/updated_data_26 --output-root scenred_backred/reduced_data_26 --target-scenarios 20 --timestamp 2025-01-01T00:00:00Z --markets all
-
 --------'''
