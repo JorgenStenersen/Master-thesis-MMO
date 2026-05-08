@@ -86,7 +86,7 @@ def objective_optuna(trial: "optuna.trial.Trial", args) -> float:
         epsilon=args.epsilon,
         max_iter=args.max_iter,
         gap_pct=args.gap_pct,
-        adaptive_alpha=adaptive_alpha,
+        adaptive_alpha=True,
         tau=tau,
         mu=mu,
         base_work_dir=Path(args.work_dir) / "hyperopt",
@@ -111,9 +111,9 @@ def main(cli_args: dict | None = None):
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--epsilon", type=float, default=1e-2)
     parser.add_argument("--gap-pct", type=float, default=0.01)
-    parser.add_argument("--max-iter", type=int, default=50)
+    parser.add_argument("--max-iter", type=int, default=100)
     parser.add_argument("--work-dir", type=str, default="ph_hyperopt_runs")
-    parser.add_argument("--n-trials", type=int, default=20)
+    parser.add_argument("--n-trials", type=int, default=10)
     parser.add_argument("--n-jobs", type=int, default=1)
     parser.add_argument("--study-name", type=str, default="ph_opt")
     parser.add_argument("--max-workers", type=int, default=1)
@@ -168,15 +168,15 @@ def main(cli_args: dict | None = None):
 if __name__ == "__main__":
     # Default run settings (can be overridden by passing a dict to main)
     cli_defaults = {
-        "time_str": "2025-04-06 08:00:00+00:00",
-        "n_total": 6,
+        "time_str": "2025-12-17 05:00:00+00:00",
+        "n_total": 4,
         "n_per_bundle": 2,
-        "num_bundles": 108,
+        "num_bundles": 32,
         "seed": 1,
         "epsilon": 1e-2,
-        "max_iter": 50,
+        "max_iter": 100,
         "work_dir": "ph_hyperopt_runs",
-        "n_trials": 30,
+        "n_trials": 10,
         "n_jobs": 1,
         "study_name": "ph_opt",
         "max_workers": 2,

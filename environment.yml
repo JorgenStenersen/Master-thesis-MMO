@@ -8,6 +8,7 @@ dependencies:
   - pandas=2.2.2
   - pyarrow=14.0.2
   - fastparquet=2024.11.0
+  - optuna=3.3.0
   - pip
   - pip:
       - gurobipy==12.0.0

@@ -4,7 +4,7 @@
 #$ -j y
 #$ -o ph_bidding_$JOB_ID.out
 #$ -pe smp 64
-#$ -l h_rt=12:00:00
+#$ -l h_rt=04:00:00
 
 set -euo pipefail
 
@@ -54,17 +54,17 @@ python -c "import numpy, pandas, pyarrow, fastparquet, gurobipy; print(f'deps ok
 
 # ----- Progressive Hedging runtime config -----
 # Override these with environment variables at submit time if needed.
-TIME_STR="${TIME_STR:-2025-04-04 08:00:00+00:00}"
-N_TOTAL="${N_TOTAL:-20}"
-N_PER_BUNDLE="${N_PER_BUNDLE:-3}"
-NUM_BUNDLES="${NUM_BUNDLES:-100}"
+TIME_STR="${TIME_STR:-2025-04-06 08:00:00+00:00}"
+N_TOTAL="${N_TOTAL:-10}"
+N_PER_BUNDLE="${N_PER_BUNDLE:-2}"
+NUM_BUNDLES="${NUM_BUNDLES:-500}"
 SEED="${SEED:-30}"
-ALPHA="${ALPHA:-100}"
-EPSILON="${EPSILON:-1}"
+ALPHA="${ALPHA:-130.71}"
+EPSILON="${EPSILON:-20}"
 MAX_ITER="${MAX_ITER:-100}"
 ADAPTIVE_ALPHA="${ADAPTIVE_ALPHA:-1}"
-TAU="${TAU:-2.0}"
-MU="${MU:-5.0}"
+TAU="${TAU:-3.22}"
+MU="${MU:-0.016}"
 PH_WORKDIR="${PH_WORKDIR:-ph_sge_runs/$JOB_ID}"
 
 # ----- Local parallelism config (single SGE compute node) -----
