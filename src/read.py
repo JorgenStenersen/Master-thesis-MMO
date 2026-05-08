@@ -257,13 +257,15 @@ def _ensure_reduced_forecast_slice(
     park: str,
 ) -> tuple[list[float], list[float]]:
 
+    # Ensure outputs are placed under a folder for the given target_scenarios
+    target_root = REDUCTION_OUTPUT_ROOT / str(target_scenarios)
+    reduced_parquet = target_root / filename
 
-    reduced_parquet = REDUCTION_OUTPUT_ROOT / filename
-
-    REDUCTION_OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
+    # Create the target directories
+    target_root.mkdir(parents=True, exist_ok=True)
 
     metadata_path = (
-        REDUCTION_OUTPUT_ROOT
+        target_root
         / "probabilities"
         / Path(filename).stem
         / date_str
@@ -278,9 +280,10 @@ def _ensure_reduced_forecast_slice(
             f"Missing reduction input parquet for {filename}: {input_path}"
         )
 
+    # Ask the reducer to write into the per-target_scenarios folder
     backwards_reduction.reduce_parquet_file(
         input_path=Path(input_path),
-        output_root=REDUCTION_OUTPUT_ROOT,
+        output_root=target_root,
         target_scenarios=target_scenarios,
         filter_date=date_str,
         filter_hour=hour,
