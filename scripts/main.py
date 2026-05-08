@@ -12,7 +12,7 @@ if __name__ == "__main__":
     mode = "progressive_hedging"
 
     path = "./input_data_10.csv"
-    time_str = "2025-06-12 20:00:00+00:00"
+    time_str = "2025-04-06 08:00:00+00:00"
     n = 6
     verbose = True
     seed = 30
@@ -23,7 +23,8 @@ if __name__ == "__main__":
 
     # --- Progressive Hedging: solve bundles ---
     n_per_bundle = 2
-    num_bundles = 10
+    D = 4
+    num_bundles = round(D * n**3 / n_per_bundle**3)
     alpha = 100
     epsilon = 5
     adaptive_alpha = True
