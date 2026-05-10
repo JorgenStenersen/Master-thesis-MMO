@@ -48,7 +48,7 @@ def _summarize_iter_results(iter_dir: Path) -> None:
 
     print(f"  solved bundles: {solved}/{len(result_files)}")
     if objectives:
-        print(f"  objective min/max: {min(objectives):.4f}/{max(objectives):.4f}")
+        print(f"  augmented sobjective min/max: {min(objectives):.4f}/{max(objectives):.4f}")
 
 
 def main() -> None:

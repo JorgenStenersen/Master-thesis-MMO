@@ -69,7 +69,7 @@ def run_trial_and_get_elapsed(time_str: str, n_total: int, n_per_bundle: int, nu
 
 def objective_optuna(trial: "optuna.trial.Trial", args) -> float:
     # Suggest hyperparameters
-    alpha = trial.suggest_float("alpha", 1, 1e2, log=True)
+    alpha = trial.suggest_float("alpha", 1, 200, log=True)
     tau = trial.suggest_float("tau", 1.1, 10, log=True)
     mu = trial.suggest_float("mu", 1.1, 10, log=True)
 
@@ -167,13 +167,13 @@ def main(cli_args: dict | None = None):
 if __name__ == "__main__":
     # Default run settings (can be overridden by passing a dict to main)
     cli_defaults = {
-        "time_str": "2025-04-06 08:00:00+00:00",
+        "time_str": "2025-06-12 20:00:00+00:00",
         "n_total": 6,
-        "n_per_bundle": 2,
-        "num_bundles": 108,
+        "n_per_bundle": 1,
+        "num_bundles": 1080,
         "seed": 1,
         "epsilon": 1e-2,
-        "max_iter": 100000,
+        "max_iter": 200,
         "work_dir": "ph_hyperopt_runs",
         "n_trials": 50,
         "n_jobs": 1,

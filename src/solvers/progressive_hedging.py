@@ -638,7 +638,7 @@ def solve_bundles_augmented(B, global_bounds, W_shadow, consensus, alpha,
     return results
 
 
-def _objective_mean(results, key="objective"):
+def _objective_mean(results, key):
     objectives = [r.get(key) for r in results if r is not None and r.get(key) is not None]
     if not objectives:
         return None

@@ -143,7 +143,9 @@ def run_ph_combo_inprocess(time_str: str, n_total: int, n_per_bundle: int, num_b
     end = time.perf_counter()
     elapsed = end - start
 
-    objs = [r["objective"] for r in results if r is not None and "objective" in r]
+    
+
+    objs = [r["objective_unaugmented"] for r in results if r is not None and "objective_unaugmented" in r]
     mean_obj = sum(objs) / len(objs) if objs else None
     min_obj = min(objs) if objs else None
     max_obj = max(objs) if objs else None
