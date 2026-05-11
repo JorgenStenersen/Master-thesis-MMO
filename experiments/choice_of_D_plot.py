@@ -1,33 +1,52 @@
+
 import numpy as np
+
 import matplotlib.pyplot as plt
-from math import comb
 
-def prob_all_selected(n, D):
+def prob_all_nodes_selected_poisson(n, D):
+
     """
-    Probability that all n nodes are selected
-    after D*n draws with replacement.
+    Poisson approximation for coupon collector:
+    P(all nodes selected) ≈ exp(-n * exp(-D))
+    where number of draws is m = D*n.
     """
-    m = int(round(D * n))
 
-    # Inclusion-exclusion: P(all nodes selected)
-    p_all_selected = 0.0
-    for k in range(n + 1):
-        p_all_selected += (-1)**k * comb(n, k) * ((n - k) / n) ** m
+    return np.exp(-n * np.exp(-D))
 
-    return p_all_selected
+n = 12**3
 
+D_values = np.linspace(2, 10, 100)
+probabilities = prob_all_nodes_selected_poisson(n, D_values)
 
-# Parameters
-n = 100
-D_values = np.linspace(1, 10, 100)
-
-probabilities = [prob_all_selected(n, D) for D in D_values]
-
-# Plot
 plt.figure(figsize=(8, 5))
 plt.plot(D_values, probabilities)
 plt.xlabel("D")
-plt.ylabel("P(all nodes are selected)")
-plt.title(f"Probability of all nodes being selected, n = {n}")
+plt.ylabel("P(all stage-3 nodes are selected)")
+plt.title(f"Poisson approximation, n = {12}")
 plt.grid(True)
+
+
+
+import numpy as np
+
+import matplotlib.pyplot as plt
+
+D_values = np.linspace(2, 10, 500)
+
+# Expected fraction of selected nodes
+
+expected_fraction = 1 - np.exp(-D_values)
+
+plt.figure(figsize=(8, 5))
+
+plt.plot(D_values, expected_fraction)
+
+plt.xlabel("D")
+
+plt.ylabel("Expected fraction of stage-3 nodes selected")
+
+plt.grid(True)
+
+plt.ylim(0.85, 1.01)
+
 plt.show()
