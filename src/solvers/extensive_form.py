@@ -11,6 +11,7 @@ import src.read as read
 import src.utils as utils
 from src.model import build_model, initialize_run
 import src.tree as tree
+from src.solvers.progressive_hedging import write_bidding_policy
 
 
 def _sanitize_for_filename(value: str) -> str:
@@ -84,6 +85,54 @@ def _write_extensive_results(model_container, time_str, n, seed, status=None, er
     with output_path.open("w", encoding="utf-8") as handle:
         json.dump(results, handle, indent=2)
 
+    # Also write a bidding policy JSON in the same format used by
+    # progressive hedging so that extensive-form results can be
+    # compared directly with PH output. Only write when we have an
+    # optimal solution (variables populated).
+    try:
+        if status_value == GRB.OPTIMAL:
+            # Build consensus-like structure expected by the PH writer
+            x = vars_map["x"]
+            r = vars_map["r"]
+
+            M_u = sets_map.get("M_u", [])
+            M_v = sets_map.get("M_v", [])
+            M_w = sets_map.get("M_w", [])
+
+            U = utils.sort_nodes(sets_map["U"])
+            V = sets_map["V"]
+            W = sets_map["W"]
+            V_all = set().union(*V.values())
+
+            bidding_policy = {"stage1": {}, "stage2": {}, "stage3": {}}
+
+            # Stage 1: use representative u
+            if U:
+                u_rep = next(iter(U))
+                for m in M_u:
+                    bidding_policy["stage1"][m] = {"x": float(x[m, u_rep].X), "r": float(r[m, u_rep].X)}
+
+            # Stage 2: one representative v per u
+            for u in U:
+                v_rep = next(iter(V[u]))
+                for m in M_v:
+                    bidding_policy["stage2"][(m, u)] = {"x": float(x[m, v_rep].X), "r": float(r[m, v_rep].X)}
+
+            # Stage 3: one representative w per v
+            for v in V_all:
+                w_rep = next(iter(W[v]))
+                for m in M_w:
+                    bidding_policy["stage3"][(m, v)] = {"x": float(x[m, w_rep].X), "r": float(r[m, w_rep].X)}
+
+            # Write policy file alongside extensive results
+            policy_run_stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+            safe_time = _sanitize_for_filename(str(time_str))
+            policy_path = results_root / f"bidding_policy_extensive_{safe_time}_{policy_run_stamp}.json"
+            write_bidding_policy(bidding_policy, policy_path)
+            # no verbose print here — caller prints results_path
+    except Exception as exc:
+        # Don't fail the overall run if policy writing fails; log to stdout
+        print(f"[WARN] Failed to write extensive bidding policy: {exc}")
     return output_path
 
 
