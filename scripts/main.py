@@ -12,7 +12,7 @@ if __name__ == "__main__":
     mode = "progressive_hedging"
 
     path = "./input_data_10.csv"
-    time_str = "2025-04-06 08:00:00+00:00"
+    time_str = "2025-03-20 08:00:00+00:00"
     n = 6
     verbose = True
     seed = 30
@@ -22,14 +22,14 @@ if __name__ == "__main__":
         extensive_form.run_model(time_str, n, seed=seed, verbose=verbose)
 
     # --- Progressive Hedging: solve bundles ---
-    n_per_bundle = 2
-    D = 4
+    n_per_bundle = 1
+    D = 9
     num_bundles = round(D * n**3 / n_per_bundle**3)
     alpha = 100
-    epsilon = 5
+    epsilon = 0.01
     adaptive_alpha = True
     tau = 2.0
-    mu = 5.0
+    mu = 10.0
     gap_pct = 0.01
     max_iter = 100
 
