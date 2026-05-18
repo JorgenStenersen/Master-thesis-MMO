@@ -34,23 +34,31 @@ python -m scripts.run_main
 <pre>
 master-thesis/
 │
-├── data/                   # Input data
+├── scenred_backred                  # Data og scenario reduction
 │
 ├── results/                # Generated results (not tracked by git)
 │
 ├── scripts/
-│   └── run_main.py         # Entry point for running the model
+│   ├── run_main.py         # Entry point for running the model
+|   └── ph_bundle_worker.py # Solves the ph bundles and returns results
+|   └── ph_slurm_coordinator.py   # runs full ph algorithm with local parallelization
+|   └── run_main_slurm.sh   # Batch script for SGE
 │
 ├── src/                    # Core model code
 │   ├── model.py
 │   ├── tree.py
 │   ├── read.py
 │   └── utils.py
+|   └── model_container.py
+|   └── solvers /
+|       ├── extensive_form.py
+|       └── progressive_hedging.py
 │
-├── experiments/            # Experiment logic
-│   ├── benchmark.py
-│   └── rvmss.py
-│
+├── experiments/            # Experiment logic and test scripts
+│   ├── bundling_stability.py
+│   └── parameter_tuning.py
+|   └── run_ph_bench.py
+|
 ├── requirements.txt        # Python dependencies
 ├── README.md
 └── .gitignore
