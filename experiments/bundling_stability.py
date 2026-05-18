@@ -9,10 +9,10 @@ bundling.
 
 Usage example:
     python experiments/bundling_stability.py \
-        --time-str "2025-04-04 08:00:00+00:00" \
-        --time-str "2025-06-10 20:00:00+00:00" \
-        --time-str "2025-08-20 13:00:00+00:00" \
-        --time-str "2025-12-15 05:00:00+00:00" \
+        --time-str "2025-03-20 08:00:00+00:00" \
+        --time-str "2025-06-12 20:00:00+00:00" \
+        --time-str "2025-08-22 13:00:00+00:00" \
+        --time-str "2025-12-17 05:00:00+00:00" \
         --runs 10 \
         --n-total 50 --n-per-bundle 5 --num-bundles 10
 """
@@ -22,6 +22,7 @@ import argparse
 import json
 import statistics
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
@@ -54,6 +55,16 @@ def stats_from_list(values: List[float]) -> dict:
     }
 
 
+def _sanitize_time_str(time_str: str) -> str:
+    safe = []
+    for ch in time_str:
+        if ch.isalnum() or ch in ("-", "_", "."):
+            safe.append(ch)
+        else:
+            safe.append("_")
+    return "".join(safe)
+
+
 def run_stability(time_str: str, runs: int, n_total: int, n_per_bundle: int, num_bundles: int,
                   ph_kwargs: dict | None = None) -> dict:
     ph_kwargs = ph_kwargs or {}
@@ -61,7 +72,8 @@ def run_stability(time_str: str, runs: int, n_total: int, n_per_bundle: int, num
     runtimes = []
 
     for i in range(runs):
-        seed = i  # vary seed to change bundling
+        # Use disjoint seed ranges per run; bundles within a run use seed + b.
+        seed = 1 + i * num_bundles
         start = time.perf_counter()
         _, results, _, _ = run_progressive_hedging(
             time_str=time_str,
@@ -102,16 +114,16 @@ def main(argv: List[str] | None = None) -> None:
     # Set run parameters here in Python instead of via CLI
     # Edit the following values as needed.
     time_strs = [
-        "2025-04-06 08:00:00+00:00",
+        "2025-03-20 08:00:00+00:00",
         "2025-06-12 20:00:00+00:00",
         "2025-08-22 13:00:00+00:00",
         "2025-12-17 05:00:00+00:00",
     ]
 
-    runs = 4
+    runs = 10
     n_total = 4
-    n_per_bundle = 2
-    num_bundles = 32
+    n_per_bundle = 1
+    num_bundles = 576
 
     # PH parameters (tweak here)
     ph_kwargs = {
@@ -120,12 +132,13 @@ def main(argv: List[str] | None = None) -> None:
         "max_iter": 50,
         "gap_pct": 0.01,
         "adaptive_alpha": True,
-        "tau": 2.0,
-        "mu": 10.0,
+        "tau": 3.4,
+        "mu": 7.4,
     }
 
-    # Optional: output file
-    out = None  # set to a path like "results/bundling_stability.json" to write results
+    # Output directory (one JSON per timestamp)
+    out_dir = Path("results") / "bundling_stability"
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     # Run tests
     results = []
@@ -134,12 +147,11 @@ def main(argv: List[str] | None = None) -> None:
         res = run_stability(t, runs, n_total, n_per_bundle, num_bundles, ph_kwargs)
         results.append(res)
         print(json.dumps(res, indent=2))
-
-    if out:
-        out_path = Path(out)
-        out_path.parent.mkdir(parents=True, exist_ok=True)
+        safe_time = _sanitize_time_str(t)
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        out_path = out_dir / f"{safe_time}_{stamp}.json"
         with out_path.open("w", encoding="utf-8") as fh:
-            json.dump(results, fh, indent=2)
+            json.dump(res, fh, indent=2)
 
 
 if __name__ == "__main__":

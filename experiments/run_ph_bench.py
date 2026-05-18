@@ -8,11 +8,11 @@ PH configuration.
 
 Usage examples:
     python experiments.run_ph_bench \
-        --time-str "2025-04-04 08:00:00+00:00" \
-        --time-str "2025-06-10 20:00:00+00:00" \
+        --time-str "2025-04-06 08:00:00+00:00" \
+        --time-str "2025-06-12 20:00:00+00:00" \
         --time-str "2025-08-20 13:00:00+00:00" \
         --time-str "2025-12-15 05:00:00+00:00" \
-        --extensive-n 3 \
+        --extensive-n 6 \
         --combo 3:1:3 --combo 3:1:6 \
         --out results/ph_bench.csv
 
@@ -112,9 +112,9 @@ def run_extensive(time_str: str, n: int, seed: int | None = None) -> dict:
 
 
 def run_ph_combo_inprocess(time_str: str, n_total: int, n_per_bundle: int, num_bundles: int,
-                           seed: int = 0, alpha: float = 100.0, epsilon: float = 1e-2,
-                           max_iter: int = 50, gap_pct: float = 0.01, adaptive_alpha: bool = True,
-                           tau: float = 2.0, mu: float = 10.0,
+                           seed: int = 30, alpha: float = 100.0, epsilon: float = 1e-2,
+                           max_iter: int = 100, gap_pct: float = 0.01, adaptive_alpha: bool = True,
+                           tau: float = 3.4, mu: float = 7.4,
                            bidding_output_dir: Path | None = None) -> tuple[dict, str]:
     """Run progressive hedging for one combo, measure runtime and extract objective stats."""
     start = time.perf_counter()
@@ -220,18 +220,18 @@ def main(argv: List[str] | None = None) -> None:
     parser.add_argument("--time-str", action="append", required=True,
                         help="Timestamp(s) to run the benchmark for. Specify one or more occurrences.")
     parser.add_argument("--extensive-n", type=int, default=None, help="n for the extensive form run")
-    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--seed", type=int, default=30)
     parser.add_argument("--combo", type=parse_combo, action="append",
                         help="Specify a PH combo as n_total:n_per_bundle:num_bundles (repeat up to 10 times)")
     parser.add_argument("--out", type=str, default=None, help="Output CSV path")
     parser.add_argument("--alpha", type=float, default=100.0)
     parser.add_argument("--epsilon", type=float, default=1e-2)
     parser.add_argument("--gap-pct", type=float, default=0.01)
-    parser.add_argument("--max-iter", type=int, default=50)
+    parser.add_argument("--max-iter", type=int, default=100)
     parser.add_argument("--adaptive-alpha", type=int, choices=(0, 1), default=1)
-    parser.add_argument("--tau", type=float, default=2.0)
-    parser.add_argument("--mu", type=float, default=10.0)
-    parser.add_argument("--run-type", choices=("extensive", "ph", "both"), default="both")
+    parser.add_argument("--tau", type=float, default=3.4)
+    parser.add_argument("--mu", type=float, default=7.4)
+    parser.add_argument("--run-type", choices=("extensive", "ph", "both"), default="ph")
     parser.add_argument("--ph-backend", choices=("inprocess", "coordinator"), default="inprocess")
     parser.add_argument("--results-root", type=str, default=os.environ.get("RESULTS_ROOT", "results"))
     parser.add_argument("--ph-work-root", type=str, default=os.environ.get("PH_WORK_ROOT", ""))
