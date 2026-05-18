@@ -34,7 +34,7 @@ python -m scripts.run_main
 <pre>
 master-thesis/
 │
-├── scenred_backred                  # Data og scenario reduction
+├── scenred_backred                  # Data and scenario reduction
 │
 ├── results/                # Generated results (not tracked by git)
 │
@@ -55,9 +55,6 @@ master-thesis/
 |       └── progressive_hedging.py
 │
 ├── experiments/            # Experiment logic and test scripts
-│   ├── bundling_stability.py
-│   └── parameter_tuning.py
-|   └── run_ph_bench.py
 |
 ├── requirements.txt        # Python dependencies
 ├── README.md
