@@ -175,7 +175,7 @@ if __name__ == "__main__":
 	parser.add_argument("--ph-n-total", type=int, default=4, help="PH total scenarios (n_total)")
 	parser.add_argument("--ph-n-per-bundle", type=int, default=1, help="PH scenarios per bundle (n_per_bundle)")
 	parser.add_argument("--ph-num-bundles", type=int, default=352, help="PH number of bundles")
-	parser.add_argument("--seed", type=int, default=0, help="Random seed for sampling and PH")
+	parser.add_argument("--seed", type=int, default=30, help="Random seed for sampling and PH")
 	parser.add_argument("--out", type=str, default="results/strategies", help="Output root directory")
 
 	args = parser.parse_args()

@@ -219,7 +219,7 @@ def build_sets_from_tree(tree):
     return U, V, W, S
 
 
-def build_scenario_bundles(input_data: dict, n_per_bundle: int, num_bundles: int, seed: int = 0) -> List[Dict[str, Any]]:
+def build_scenario_bundles(input_data: dict, n_per_bundle: int, num_bundles: int, seed: int = 30) -> List[Dict[str, Any]]:
     """
     Builds and stores a collection of scenario bundles (small scenario trees).
 

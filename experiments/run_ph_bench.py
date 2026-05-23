@@ -8,10 +8,10 @@ PH configuration.
 
 Usage examples:
     python experiments.run_ph_bench \
-        --time-str "2025-04-06 08:00:00+00:00" \
+        --time-str "2025-03-20 08:00:00+00:00" \
         --time-str "2025-06-12 20:00:00+00:00" \
-        --time-str "2025-08-20 13:00:00+00:00" \
-        --time-str "2025-12-15 05:00:00+00:00" \
+        --time-str "2025-08-22 13:00:00+00:00" \
+        --time-str "2025-12-17 05:00:00+00:00" \
         --extensive-n 6 \
         --combo 3:1:3 --combo 3:1:6 \
         --out results/ph_bench.csv
@@ -229,8 +229,8 @@ def main(argv: List[str] | None = None) -> None:
     parser.add_argument("--gap-pct", type=float, default=0.01)
     parser.add_argument("--max-iter", type=int, default=100)
     parser.add_argument("--adaptive-alpha", type=int, choices=(0, 1), default=1)
-    parser.add_argument("--tau", type=float, default=3.4)
-    parser.add_argument("--mu", type=float, default=7.4)
+    parser.add_argument("--tau", type=float, default=2.0)
+    parser.add_argument("--mu", type=float, default=10.0)
     parser.add_argument("--run-type", choices=("extensive", "ph", "both"), default="ph")
     parser.add_argument("--ph-backend", choices=("inprocess", "coordinator"), default="inprocess")
     parser.add_argument("--results-root", type=str, default=os.environ.get("RESULTS_ROOT", "results"))

@@ -410,7 +410,7 @@ def compute_dual_residual(consensus, prev_consensus, alpha):
     return alpha * math.sqrt(sq)
 
 
-def adapt_alpha(alpha, primal_residual, dual_residual, tau=3.4, mu=7.4):
+def adapt_alpha(alpha, primal_residual, dual_residual, tau=2.0, mu=10.0):
     """
     Residual-balancing adaptive alpha update (Boyd et al., ADMM survey).
 
@@ -422,8 +422,8 @@ def adapt_alpha(alpha, primal_residual, dual_residual, tau=3.4, mu=7.4):
         alpha:            current penalty parameter
         primal_residual:  convergence gap g^(k)
         dual_residual:    dual residual s^(k)
-        tau:              scaling factor for alpha adjustments (default 3.4)
-        mu:               threshold ratio for triggering adjustment (default 7.4)
+        tau:              scaling factor for alpha adjustments (default 2.0)
+        mu:               threshold ratio for triggering adjustment (default 10.0)
 
     Returns:
         alpha: updated penalty parameter
@@ -755,9 +755,9 @@ def write_bidding_policy(consensus, output_path: Path) -> None:
         json.dump(consensus_to_json(consensus), handle, indent=2)
 
 
-def run_progressive_hedging(time_str, n_total, n_per_bundle, num_bundles, seed=0, verbose=True,
+def run_progressive_hedging(time_str, n_total, n_per_bundle, num_bundles, seed=30, verbose=True,
                             alpha=100, epsilon=1e-2, max_iter=100, gap_pct=0.01,
-                            adaptive_alpha=True, tau=3.4, mu=7.4,
+                            adaptive_alpha=True, tau=2.0, mu=10.0,
                             bidding_output_dir: str | Path | None = None):
     """
     Entry point for the Progressive Hedging algorithm.
@@ -777,8 +777,8 @@ def run_progressive_hedging(time_str, n_total, n_per_bundle, num_bundles, seed=0
         max_iter:       maximum number of PH iterations
         gap_pct:        convergence threshold as a fraction of |objective_unaugmented_mean|
         adaptive_alpha: if True, use residual-balancing to adapt alpha each iteration
-        tau:            scaling factor for alpha adjustments (default 3.4)
-        mu:             threshold ratio for triggering adjustment (default 7.4)
+        tau:            scaling factor for alpha adjustments (default 2.0)
+        mu:             threshold ratio for triggering adjustment (default 10.0)
         bidding_output_dir: optional directory for writing a bidding policy file
 
     Returns:

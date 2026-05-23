@@ -64,7 +64,7 @@ EPSILON="${EPSILON:-20}"
 MAX_ITER="${MAX_ITER:-100}"
 ADAPTIVE_ALPHA="${ADAPTIVE_ALPHA:-1}"
 TAU="${TAU:-2.0}"
-MU="${MU:-5.0}"
+MU="${MU:-10.0}"
 PH_WORKDIR="${PH_WORKDIR:-ph_sge_runs/$JOB_ID}"
 
 # ----- Local parallelism config (single SGE compute node) -----
@@ -111,4 +111,4 @@ python -m scripts.ph_slurm_coordinator \
 # with default parameters:
 # qsub -V scripts/run_model_slurm.sh
 # with custom parameters (example):
-# qsub -V -pe smp 10 -v TIME_STR="2025-10-09 21:00:00+00:00",N_TOTAL=5,N_PER_BUNDLE=3,NUM_BUNDLES=10,SEED=30,ALPHA=100,EPSILON=1,MAX_ITER=50,ADAPTIVE_ALPHA=1,TAU=2.0,MU=10.0 scripts/run_model_slurm.sh
+# qsub -V -pe smp 10 -v TIME_STR="2025-10-09 21:00:00+00:00",N_TOTAL=5,N_PER_BUNDLE=3,NUM_BUNDLES=10,SEED=30,ALPHA=100,EPSILON=1,MAX_ITER=50,ADAPTIVE_ALPHA=1,TAU=3.4,MU=7.4 scripts/run_model_slurm.sh
