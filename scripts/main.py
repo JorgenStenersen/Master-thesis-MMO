@@ -1,5 +1,6 @@
 import src.solvers.extensive_form as extensive_form
 import src.solvers.progressive_hedging as progressive_hedging
+from scripts.ph_plots import plot_ph_boxplot
 from scripts.ph_slurm_coordinator import run_distributed_ph
 from pathlib import Path
 from datetime import datetime
@@ -8,12 +9,12 @@ import os
 
 if __name__ == "__main__":
 
-    #mode = "extensive_form"
-    mode = "progressive_hedging"
+    mode = "extensive_form"
+    #mode = "progressive_hedging"
 
     path = "./input_data_10.csv"
-    time_str = "2025-03-20 08:00:00+00:00"
-    n = 6
+    time_str = "2025-12-17 05:00:00+00:00"
+    n = 8
     verbose = True
     seed = 30
 
@@ -41,7 +42,8 @@ if __name__ == "__main__":
         run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
         work_dir = Path("ph_local_runs") / run_id
 
-        run_distributed_ph(
+        # Run PH locally (single-process coordinator) and collect results
+        B, results, consensus, W_shadow = progressive_hedging.run_progressive_hedging(
             time_str=time_str,
             n_total=n,
             n_per_bundle=n_per_bundle,
@@ -54,10 +56,20 @@ if __name__ == "__main__":
             adaptive_alpha=adaptive_alpha,
             tau=tau,
             mu=mu,
-            work_dir=work_dir,
-            max_workers=max_workers,
-            gurobi_threads_per_bundle=gurobi_threads_per_bundle,
+            bidding_output_dir=work_dir,
+            verbose=verbose,
         )
 
-        if verbose:
-            print(f"[INFO] PH artifacts written under: {work_dir}")
+        # Create boxplots of decisions for x and r and save under the PH run directory
+        try:
+            png_x = work_dir / "ph_consensus_boxplot_x.png"
+            plot_ph_boxplot(results, consensus, output_path=png_x, var="x")
+            if verbose:
+                print(f"[INFO] PH consensus boxplot (x) written to: {png_x}")
+
+            png_r = work_dir / "ph_consensus_boxplot_r.png"
+            plot_ph_boxplot(results, consensus, output_path=png_r, var="r")
+            if verbose:
+                print(f"[INFO] PH consensus boxplot (r) written to: {png_r}")
+        except Exception as e:
+            print(f"[WARNING] Could not create PH consensus boxplots: {e}")
