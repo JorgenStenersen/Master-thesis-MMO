@@ -1,11 +1,16 @@
-# master-thesis
-For developing and solving the NMMWPBP
+## Master-Thesis-MMO
+For developing and solving the NMMWPBP.
 
 ## Requirements
 
 - Python 3.12.x
 - Gurobi 12.0.x (must be installed separately)
-
+- gurobipy 12.0.0
+- numpy 1.26.4
+- pandas 2.2.2
+- pyarrow 14.0.2
+- fastparquet 2024.11.0
+- optuna 3.3.0
 
 ## Setup
 
@@ -39,7 +44,7 @@ master-thesis/
 ├── results/                # Generated results (not tracked by git)
 │
 ├── scripts/
-│   ├── run_main.py         # Entry point for running the model
+│   ├── main.py         # Entry point for running the model
 |   └── ph_bundle_worker.py # Solves the ph bundles and returns results
 |   └── ph_slurm_coordinator.py   # runs full ph algorithm with local parallelization
 |   └── run_main_slurm.sh   # Batch script for SGE
