@@ -32,7 +32,7 @@ pip install -r requirements.txt
 
 ## Run
 <pre>
-python -m scripts.run_main
+python -m scripts.main 
 </pre>
 
 ## Project structure
